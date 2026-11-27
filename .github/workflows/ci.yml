@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build production bundle
+        env:
+          VITE_CONTRACT_ADDRESS: "0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67"
+          VITE_CHAIN_ID: "11155111"
+          VITE_API_URL: "http://localhost:5000/api"
+        run: npm run build
+
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Run backend security & regression tests
+        env:
+          NODE_ENV: test
+          PORT: "5000"
+          ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:5174"
+          SIWE_DOMAIN: "localhost:5173"
+          SIWE_URI: "http://localhost:5173"
+          SIWE_CHAIN_ID: "11155111"
+          NONCE_TTL_SECONDS: "300"
+          SUPABASE_URL: "https://ci-mock-project.supabase.co"
+          SUPABASE_SECRET_KEY: "sb_secret_ci_test_only_placeholder_key_12345"
+          SEPOLIA_RPC_URL: "https://ci-mock-rpc.invalid"
+          CONTRACT_ADDRESS: "0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67"
+          JWT_SECRET: "ci_test_only_jwt_secret_0123456789abcdef0123456789abcdef01234567"
+          JWT_EXPIRES_IN: "1h"
+          CONTRACT_DEPLOYMENT_BLOCK: "12203912"
+          SYNC_BLOCK_RANGE: "10"
+          SYNC_MAX_BLOCKS: "200"
+          SYNC_CONFIRMATIONS: "12"
+        run: npm test
+
+  contracts:
+    name: Smart Contract CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: contracts-project
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: contracts-project/package-lock.json
+
+      - name: Install Hardhat dependencies
+        run: npm ci
+
+      - name: Compile Solidity contracts
+        run: npx hardhat compile
+
+      - name: Run local Hardhat tests
+        run: npx hardhat test
