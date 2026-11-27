@@ -1,0 +1,270 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI", "Security Scanning", "CodeQL"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: production-deployment-main
+  cancel-in-progress: false
+
+jobs:
+  verify-gates:
+    name: Verify Required Gates & Commit Tip
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.gate.outputs.sha }}
+      should_deploy: ${{ steps.gate.outputs.should_deploy }}
+    steps:
+      - name: Checkout gate script from target commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          sparse-checkout: |
+            scripts/cdGateCheck.mjs
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Verify CI, Security Scanning, CodeQL, and main branch tip
+        id: gate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          RUN_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          RUN_EVENT: ${{ github.event.workflow_run.event || github.event_name }}
+        run: node scripts/cdGateCheck.mjs
+
+  deploy-render:
+    name: Deploy Backend (Render)
+    needs: verify-gates
+    if: needs.verify-gates.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Recheck main branch tip before Render deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_SHA: ${{ needs.verify-gates.outputs.sha }}
+        run: |
+          node -e '
+            (async () => {
+              const res = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/main`, {
+                headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "eth-wallet-dapp-cd" }
+              });
+              const data = await res.json();
+              if (!res.ok || data.object?.sha !== process.env.DEPLOY_SHA) {
+                console.error(`Aborted Render deploy: main tip (${data.object?.sha}) != ${process.env.DEPLOY_SHA}`);
+                process.exit(1);
+              }
+              console.log(`Confirmed main tip ${process.env.DEPLOY_SHA} before Render deploy.`);
+            })();
+          '
+
+      - name: Trigger Render deploy for validated commit and poll status
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          DEPLOY_SHA: ${{ needs.verify-gates.outputs.sha }}
+        run: |
+          node -e '
+            const serviceId = process.env.RENDER_SERVICE_ID;
+            const apiKey = process.env.RENDER_API_KEY;
+            const commitId = process.env.DEPLOY_SHA;
+            const headers = {
+              "Authorization": `Bearer ${apiKey}`,
+              "Accept": "application/json",
+              "Content-Type": "application/json"
+            };
+
+            (async () => {
+              const triggerRes = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ commitId })
+              });
+              const deploy = await triggerRes.json();
+              if (!triggerRes.ok || !deploy.id) {
+                console.error(`Render deploy trigger failed: HTTP ${triggerRes.status}`);
+                process.exit(1);
+              }
+
+              console.log(`RENDER_DEPLOY_ID=${deploy.id} COMMIT=${commitId}`);
+              const failedStates = new Set(["build_failed", "update_failed", "canceled", "deactivated"]);
+
+              for (let i = 1; i <= 40; i++) {
+                await new Promise((r) => setTimeout(r, 15000));
+                const pollRes = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys/${deploy.id}`, { headers });
+                const statusData = await pollRes.json();
+                const status = statusData.status;
+                console.log(`Render poll ${i}/40: status=${status}`);
+
+                if (status === "live") {
+                  console.log(`Render deployment ${deploy.id} is live for commit ${statusData.commit?.id || commitId}.`);
+                  return;
+                }
+                if (failedStates.has(status)) {
+                  console.error(`Render deployment failed with status=${status}`);
+                  process.exit(1);
+                }
+              }
+
+              console.error("Render deployment timed out waiting for live status.");
+              process.exit(1);
+            })().catch((err) => {
+              console.error("Render deploy error:", err.message);
+              process.exit(1);
+            });
+          '
+
+      - name: Verify backend /health and /health/ready (with cold-start tolerance)
+        run: |
+          node -e '
+            const base = "https://eth-wallet-dapp-backend.onrender.com";
+            (async () => {
+              for (let i = 1; i <= 6; i++) {
+                try {
+                  const h = await fetch(`${base}/health`);
+                  const r = await fetch(`${base}/health/ready`);
+                  if (h.status === 200 && r.status === 200) {
+                    const rb = await r.json();
+                    if (rb.status === "ready" && rb.dependencies?.database === "up" && rb.dependencies?.blockchainRpc === "up") {
+                      console.log("Backend health & readiness verified.");
+                      return;
+                    }
+                  }
+                  console.log(`Attempt ${i}/6: /health=${h.status}, /health/ready=${r.status}`);
+                } catch (e) {
+                  console.log(`Attempt ${i}/6 error: ${e.message}`);
+                }
+                await new Promise((res) => setTimeout(res, 10000));
+              }
+              console.error("Backend failed health/readiness verification.");
+              process.exit(1);
+            })();
+          '
+
+  deploy-vercel:
+    name: Deploy Frontend (Vercel)
+    needs: [verify-gates, deploy-render]
+    if: needs.verify-gates.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify-gates.outputs.sha }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@67.0.0
+
+      - name: Recheck main branch tip before Vercel deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_SHA: ${{ needs.verify-gates.outputs.sha }}
+        run: |
+          node -e '
+            (async () => {
+              const res = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/main`, {
+                headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "eth-wallet-dapp-cd" }
+              });
+              const data = await res.json();
+              if (!res.ok || data.object?.sha !== process.env.DEPLOY_SHA) {
+                console.error(`Aborted Vercel deploy: main tip (${data.object?.sha}) != ${process.env.DEPLOY_SHA}`);
+                process.exit(1);
+              }
+              console.log(`Confirmed main tip ${process.env.DEPLOY_SHA} before Vercel deploy.`);
+            })();
+          '
+
+      - name: Pull production config, build, and deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "VERCEL_DEPLOY_URL=${DEPLOY_URL}"
+
+      - name: Verify Vercel production alias responds HTTP 200
+        run: |
+          curl -fsSL -o /dev/null -w "Vercel HTTP %{http_code}\n" https://eth-wallet-dapp-eta.vercel.app
+
+  smoke-test:
+    name: Production Smoke Tests
+    needs: [verify-gates, deploy-render, deploy-vercel]
+    if: needs.verify-gates.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify-gates.outputs.sha }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend production dependencies for smoke script
+        working-directory: backend
+        run: npm ci --omit=dev
+
+      - name: Run automated production smoke tests
+        env:
+          FRONTEND_URL: https://eth-wallet-dapp-eta.vercel.app
+          BACKEND_URL: https://eth-wallet-dapp-backend.onrender.com
+          CONTRACT_ADDRESS: "0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67"
+        run: node scripts/smokeTestProduction.mjs
+
+  browser-tests:
+    name: Mocked Wallet Browser Tests (Playwright)
+    needs: [verify-gates, smoke-test]
+    if: needs.verify-gates.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify-gates.outputs.sha }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies and Playwright Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright mocked EIP-1193 browser tests
+        run: npm run test:browser
