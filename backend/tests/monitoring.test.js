@@ -94,5 +94,36 @@ test.describe("Phase 5.7 — Structured Logging, Redaction & Correlation IDs", (
             blockchainRpc: "down"
         });
         assert.equal(JSON.stringify(body).includes("secretKey999"), false);
+
+        // Verify dependency recovery transitions 503 degraded -> 200 ready
+        supabase.from = () => ({ select: async () => ({ count: 0, error: null }) });
+        provider.getBlockNumber = async () => 12222901;
+        const recovered = await fetch(`${baseUrl}/health/ready`);
+        const recoveredBody = await recovered.json();
+        assert.equal(recovered.status, 200);
+        assert.equal(recoveredBody.status, "ready");
+    });
+
+    test("logger redacts deeply nested private keys, apiKeys, rpc_url and malformed JSON returns sanitized error", async () => {
+        const nested = logger.sanitizeValue({
+            nested: {
+                privateKey: "0x" + "12".repeat(32),
+                apiKey: "alchemy_secret_key_value",
+                rpc_url: "https://eth-sepolia.g.alchemy.com/v2/secretPart"
+            }
+        });
+        assert.equal(nested.nested.privateKey, "[REDACTED]");
+        assert.equal(nested.nested.apiKey, "[REDACTED]");
+        assert.equal(nested.nested.rpc_url, "[REDACTED]");
+
+        const badJsonRes = await fetch(`${baseUrl}/api/auth/nonce`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{invalid-json"
+        });
+        const badJsonBody = await badJsonRes.json();
+        assert.equal(badJsonRes.status, 400);
+        assert.equal(badJsonBody.message, "Malformed JSON request body");
+        assert.equal(badJsonBody.stack, undefined);
     });
 });

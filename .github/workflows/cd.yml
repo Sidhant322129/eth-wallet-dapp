@@ -111,7 +111,14 @@ jobs:
                 console.log(`Render poll ${i}/40: status=${status}`);
 
                 if (status === "live") {
+                  const fs = require("fs");
                   console.log(`Render deployment ${deploy.id} is live for commit ${statusData.commit?.id || commitId}.`);
+                  if (process.env.GITHUB_STEP_SUMMARY) {
+                    fs.appendFileSync(
+                      process.env.GITHUB_STEP_SUMMARY,
+                      `### Render Deployment\n- Deploy ID: \`${deploy.id}\`\n- Commit: \`${commitId}\`\n- Status: \`live\`\n`
+                    );
+                  }
                   return;
                 }
                 if (failedStates.has(status)) {
@@ -203,6 +210,14 @@ jobs:
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
           DEPLOY_URL=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")
           echo "VERCEL_DEPLOY_URL=${DEPLOY_URL}"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "### Vercel Deployment"
+              echo "- Deploy URL: ${DEPLOY_URL}"
+              echo "- Commit: \`${GITHUB_SHA}\`"
+              echo "- Alias: https://eth-wallet-dapp-eta.vercel.app"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Verify Vercel production alias responds HTTP 200
         run: |

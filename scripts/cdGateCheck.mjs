@@ -1,8 +1,15 @@
 import fs from "node:fs";
 
+const DOC_ONLY_PATH_RE = /^(README\.md|docs\/.*|.*\.md)$/i;
+
+export function isNonRuntimeDocPath(filename) {
+  return typeof filename === "string" && DOC_ONLY_PATH_RE.test(filename);
+}
+
 /**
  * Evaluate whether CD should deploy the given commit SHA on main.
- * Distinguishes no-op/skipped CD runs from actual completed deployments.
+ * Distinguishes no-op/skipped CD runs from actual completed deployments
+ * and skips documentation-only changes relative to the last deployed runtime SHA.
  */
 export async function evaluateCdGate({
   repo,
@@ -79,6 +86,52 @@ export async function evaluateCdGate({
         shouldDeploy: false,
         reason: `CD already deployed ${sha} (run ${cdRun.id}); skipping duplicate.`,
       };
+    }
+  }
+
+  // 4. Skip docs-only changes compared against the last successfully deployed runtime commit
+  const cdHistRes = await fetchImpl(
+    `https://api.github.com/repos/${repo}/actions/workflows/cd.yml/runs?branch=main&status=completed&per_page=20`,
+    { headers }
+  );
+  let baselineSha = null;
+  if (cdHistRes.ok) {
+    const cdHist = await cdHistRes.json();
+    for (const histRun of cdHist.workflow_runs || []) {
+      if (histRun.head_sha === sha) continue;
+      const jobsRes = await fetchImpl(
+        `https://api.github.com/repos/${repo}/actions/runs/${histRun.id}/jobs`,
+        { headers }
+      );
+      if (!jobsRes.ok) continue;
+      const jobsData = await jobsRes.json();
+      const deployedBoth = ["Deploy Backend (Render)", "Deploy Frontend (Vercel)"].every((name) =>
+        (jobsData.jobs || []).some(
+          (j) => j.name === name && j.status === "completed" && j.conclusion === "success"
+        )
+      );
+      if (deployedBoth) {
+        baselineSha = histRun.head_sha;
+        break;
+      }
+    }
+  }
+
+  if (baselineSha) {
+    const cmpRes = await fetchImpl(
+      `https://api.github.com/repos/${repo}/compare/${baselineSha}...${sha}`,
+      { headers }
+    );
+    if (cmpRes.ok) {
+      const cmpData = await cmpRes.json();
+      const files = cmpData.files || [];
+      // Only skip if file list is non-empty, not truncated (< 300), and all files are docs/screenshots
+      if (files.length > 0 && files.length < 300 && files.every((f) => isNonRuntimeDocPath(f.filename))) {
+        return {
+          shouldDeploy: false,
+          reason: `Skipping CD: only documentation/screenshot files changed since deployed baseline ${baselineSha}.`,
+        };
+      }
     }
   }
 

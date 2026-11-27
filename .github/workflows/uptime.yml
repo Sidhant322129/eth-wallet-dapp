@@ -19,71 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout uptime check script
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            scripts/uptimeCheck.mjs
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
       - name: Probe Vercel frontend and Render backend health/readiness
-        run: |
-          node -e '
-            const fs = require("fs");
-            const FRONTEND = "https://eth-wallet-dapp-eta.vercel.app";
-            const BACKEND = "https://eth-wallet-dapp-backend.onrender.com";
-
-            async function probeWithColdStartTolerance(url, expectedStatus = 200, retries = 3) {
-              for (let i = 1; i <= retries; i++) {
-                const start = Date.now();
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 35000);
-                try {
-                  const res = await fetch(url, { signal: controller.signal });
-                  clearTimeout(timer);
-                  const latencyMs = Date.now() - start;
-                  if (res.status === expectedStatus) {
-                    return { ok: true, status: res.status, latencyMs, body: await res.text() };
-                  }
-                  if (res.status >= 502 && res.status <= 504 && i < retries) {
-                    await new Promise((r) => setTimeout(r, 15000));
-                    continue;
-                  }
-                  return { ok: false, status: res.status, latencyMs };
-                } catch (err) {
-                  clearTimeout(timer);
-                  if (i === retries) {
-                    return { ok: false, status: 0, latencyMs: Date.now() - start, error: err.message };
-                  }
-                  await new Promise((r) => setTimeout(r, 15000));
-                }
-              }
-            }
-
-            (async () => {
-              const fe = await probeWithColdStartTolerance(FRONTEND);
-              const beHealth = await probeWithColdStartTolerance(`${BACKEND}/health`);
-              const beReady = await probeWithColdStartTolerance(`${BACKEND}/health/ready`);
-
-              let readyOk = false;
-              let deps = {};
-              if (beReady.ok) {
-                try {
-                  const parsed = JSON.parse(beReady.body);
-                  deps = parsed.dependencies || {};
-                  readyOk = parsed.status === "ready" && deps.database === "up" && deps.blockchainRpc === "up";
-                } catch {}
-              }
-
-              const summary = [
-                "### Production Uptime Check",
-                "| Target | Status | Latency | Details |",
-                "|---|---|---|---|",
-                `| Frontend (Vercel) | ${fe.ok ? "UP" : "DOWN"} (${fe.status}) | ${fe.latencyMs}ms | HTTPS check |`,
-                `| Backend /health (Render) | ${beHealth.ok ? "UP" : "DOWN"} (${beHealth.status}) | ${beHealth.latencyMs}ms | Process liveness |`,
-                `| Backend /health/ready | ${readyOk ? "UP" : "DEGRADED"} (${beReady.status}) | ${beReady.latencyMs}ms | ${JSON.stringify(deps)} |`
-              ].join("\n");
-
-              console.log(summary);
-              if (process.env.GITHUB_STEP_SUMMARY) {
-                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
-              }
-
-              if (!fe.ok || !beHealth.ok || !readyOk) {
-                process.exit(1);
-              }
-            })();
-          '
+        run: node scripts/uptimeCheck.mjs
