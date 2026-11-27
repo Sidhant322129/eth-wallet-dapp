@@ -8,6 +8,13 @@ updates:
       time: "05:00"
       timezone: "UTC"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "vite"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@vitejs/plugin-react"
+        update-types:
+          - "version-update:semver-major"
     groups:
       frontend-minor-and-patch:
         update-types:
@@ -36,6 +43,13 @@ updates:
       time: "05:00"
       timezone: "UTC"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "hardhat"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@nomicfoundation/hardhat-toolbox"
+        update-types:
+          - "version-update:semver-major"
     groups:
       contracts-minor-and-patch:
         update-types:
