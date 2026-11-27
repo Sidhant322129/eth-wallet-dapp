@@ -1,276 +1,462 @@
-# Ethereum Wallet DApp (`SendWithdrawMoney`)
+
+<div align="center">
+
+# Ethereum Wallet DApp
+
+**A full-stack decentralized Ethereum vault with secure wallet authentication, on-chain transaction verification and automated CI/CD.**
+
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=for-the-badge&logo=vercel)](https://eth-wallet-dapp-eta.vercel.app)
+[![Backend](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://eth-wallet-dapp-backend.onrender.com/health)
+[![Ethereum](https://img.shields.io/badge/Ethereum-Sepolia-627EEA?style=for-the-badge&logo=ethereum&logoColor=white)](https://sepolia.etherscan.io/address/0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67)
 
 [![CI](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/ci.yml)
 [![Security Scanning](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/security.yml/badge.svg)](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/security.yml)
 [![CodeQL](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/codeql.yml/badge.svg)](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/codeql.yml)
 [![CD](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/cd.yml/badge.svg)](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/cd.yml)
 [![Uptime Monitoring](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/uptime.yml/badge.svg)](https://github.com/Sidhant322129/eth-wallet-dapp/actions/workflows/uptime.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-A production-hardened, full-stack Web3 decentralized vault application built on **Ethereum Sepolia**, **React + Vite**, **Node.js + Express**, **Supabase PostgreSQL**, and **Solidity**, featuring **Sign-In with Ethereum (SIWE)** authentication, **database-backed JWT session revocation**, **on-chain transaction receipt verification**, **automated CI/CD with security gates**, and **structured observability**.
+![Tests](https://img.shields.io/badge/Tests-70%2F70_Passed-brightgreen)
+![License](https://img.shields.io/badge/License-GPL--3.0-blue)
 
----
+[Live Application](https://eth-wallet-dapp-eta.vercel.app) ·
+[Documentation](docs/) ·
+[Smart Contract](https://sepolia.etherscan.io/address/0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67)
 
-## Live Deployment
-
-| Component | URL / Address |
-|---|---|
-| **Frontend (Vercel)** | [https://eth-wallet-dapp-eta.vercel.app](https://eth-wallet-dapp-eta.vercel.app) |
-| **Backend API (Render)** | [https://eth-wallet-dapp-backend.onrender.com](https://eth-wallet-dapp-backend.onrender.com) ([`/health`](https://eth-wallet-dapp-backend.onrender.com/health)) |
-| **Smart Contract (Sepolia)** | [`0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67`](https://sepolia.etherscan.io/address/0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67) |
+</div>
 
 ---
 
-## Problem Statement & Overview
+## Overview
 
-Decentralized applications that combine non-custodial smart contracts with off-chain transaction history face three core engineering challenges:
-1. **Unauthenticated wallet spoofing**: Anyone can submit a public Ethereum address unless ownership is proven cryptographically.
-2. **Off-chain/on-chain data tampering**: Client-submitted transaction amounts or recipients cannot be trusted without independent on-chain receipt and event-log verification.
-3. **Production operational reliability**: Free-tier Web3 deployments require strict CORS/SIWE alignment, rate limiting, secret hygiene, automated security gates, and cold-start-tolerant monitoring.
+Ethereum Wallet DApp is a decentralized application that enables users to deposit, withdraw and transfer ETH through a Solidity-based smart contract vault.
 
-This project solves all three through EIP-4361 SIWE authentication, server-side `eth_getTransactionReceipt` event validation, Supabase PostgreSQL Row Level Security (RLS), and a fully gated GitHub Actions CI/CD pipeline.
+The application integrates MetaMask for wallet connectivity and transaction signing, Sign-In with Ethereum (SIWE) for authentication, and a Node.js backend for independent blockchain transaction verification and persistent transaction history.
 
----
+Built with React, Express, Solidity and PostgreSQL, the application includes automated security scanning, continuous deployment, structured logging and production availability monitoring.
 
-## Key Features
+The smart contract is deployed on the Ethereum Sepolia testnet.
 
-- **Non-Custodial Smart Contract Vault**: Deposit, withdraw, and transfer ETH on Ethereum Sepolia with Checks-Effects-Interactions reentrancy protection.
-- **SIWE & Revocable JWT Sessions**: Cryptographic EIP-4361 wallet authentication, single-use nonce replay protection, `HS256` JWT claims validation, and immediate database-backed logout revocation.
-- **On-Chain Transaction Verification & Sync**: Independent Sepolia RPC receipt/log verification, duplicate `tx_hash` prevention, and bounded incremental block-history synchronization.
-- **Defense-in-Depth API Security**: Zod schema & environment validation, Helmet security headers (HSTS in production), strict `https://` CORS allowlist, multi-tier IP and wallet-scoped rate limiting, and Supabase RLS.
-- **Automated DevSecOps CI/CD**: GitHub Actions CI, CodeQL SAST, Gitleaks full-history secret scanning, `npm audit` gates, Dependabot, gated Render/Vercel deployments, live smoke tests, and Playwright mocked EIP-1193 browser tests.
-- **Observability & Error Resilience**: Structured JSON logging with `X-Request-Id` correlation, automatic secret/wallet redaction, `/health` & `/health/ready` probes, scheduled 6-hour uptime checks, and React `ErrorBoundary`.
+## Features
 
----
+### Blockchain & Wallet
+
+- MetaMask wallet integration
+- Smart contract-based ETH deposits and withdrawals
+- ETH transfers from vault balances to external addresses
+- Real-time on-chain balance retrieval
+- Verified blockchain transaction history
+- Incremental blockchain event synchronization
+- Wallet account and network change handling
+
+### Authentication & Security
+
+- Sign-In with Ethereum (EIP-4361)
+- Single-use authentication nonces with expiration
+- JWT authentication with database-backed session revocation
+- Wallet-scoped authorization and replay protection
+- Zod request validation, Helmet, CORS and API rate limiting
+- PostgreSQL Row Level Security and database constraints
+
+### DevOps & Reliability
+
+- Automated testing and security-gated CI/CD
+- Automated Render and Vercel deployments
+- Production smoke tests and browser regression tests
+- Structured JSON logging with sensitive data redaction
+- Request correlation IDs and health checks
+- Scheduled uptime monitoring
+- Frontend error recovery
+
+## Screenshots
+
+### Application
+
+<div align="center">
+  <img src="docs/screenshots/01-live-vercel-landing.png" alt="Ethereum Wallet DApp" width="90%"/>
+</div>
+
+### Wallet Dashboard
+
+<div align="center">
+  <img src="docs/screenshots/02-authenticated-dashboard-mock.png" alt="Authenticated Wallet Dashboard" width="90%"/>
+</div>
+
+*Dashboard captured using a mocked wallet provider and API for demonstration purposes.*
 
 ## Technology Stack
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | [React 19](https://react.dev/), [Vite](https://vite.dev/), [Ethers.js v6](https://docs.ethers.org/v6/), [MetaMask](https://docs.metamask.io/) |
-| **Backend** | [Node.js 22](https://nodejs.org/), [Express 5](https://expressjs.com/), [SIWE](https://docs.login.xyz/), [JSON Web Tokens](https://github.com/auth0/node-jsonwebtoken), [Zod](https://zod.dev/), [Helmet](https://helmetjs.github.io/), [express-rate-limit](https://express-rate-limit.mintlify.app/) |
-| **Database** | [Supabase](https://supabase.com/docs) ([PostgreSQL](https://www.postgresql.org/docs/) + Row Level Security) |
-| **Blockchain** | [Solidity 0.8.20](https://docs.soliditylang.org/), [Hardhat 2](https://hardhat.org/docs), [Ethereum Sepolia](https://sepolia.etherscan.io/), [Alchemy RPC](https://docs.alchemy.com/) |
-| **DevSecOps & QA** | [GitHub Actions](https://docs.github.com/en/actions), [CodeQL](https://codeql.github.com/), [Gitleaks](https://gitleaks.io/), [Dependabot](https://docs.github.com/en/code-security/dependabot), [Playwright](https://playwright.dev/), [Render](https://render.com/docs), [Vercel](https://vercel.com/docs) |
+### Frontend
 
----
+[![React](https://skillicons.dev/icons?i=react)](https://react.dev/)
+[![Vite](https://skillicons.dev/icons?i=vite)](https://vite.dev/)
+[![JavaScript](https://skillicons.dev/icons?i=js)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![HTML](https://skillicons.dev/icons?i=html)](https://developer.mozilla.org/en-US/docs/Web/HTML)
+[![CSS](https://skillicons.dev/icons?i=css)](https://developer.mozilla.org/en-US/docs/Web/CSS)
+
+### Backend & Database
+
+[![Node.js](https://skillicons.dev/icons?i=nodejs)](https://nodejs.org/)
+[![Express](https://skillicons.dev/icons?i=express)](https://expressjs.com/)
+[![Supabase](https://skillicons.dev/icons?i=supabase)](https://supabase.com/docs)
+[![PostgreSQL](https://skillicons.dev/icons?i=postgres)](https://www.postgresql.org/docs/)
+
+### Blockchain & Web3
+
+[![Solidity](https://skillicons.dev/icons?i=solidity)](https://docs.soliditylang.org/)
+[![Ethereum](https://img.shields.io/badge/Ethereum-627EEA?style=for-the-badge&logo=ethereum&logoColor=white)](https://ethereum.org/developers/)
+[![Hardhat](https://img.shields.io/badge/Hardhat-FFF100?style=for-the-badge&logoColor=black)](https://hardhat.org/docs)
+[![Ethers.js](https://img.shields.io/badge/Ethers.js-2535A0?style=for-the-badge)](https://docs.ethers.org/v6/)
+[![MetaMask](https://img.shields.io/badge/MetaMask-F6851B?style=for-the-badge)](https://docs.metamask.io/)
+[![Alchemy](https://img.shields.io/badge/Alchemy-363FF9?style=for-the-badge)](https://www.alchemy.com/docs)
+
+### Authentication & Security
+
+[![SIWE](https://img.shields.io/badge/SIWE-EIP--4361-627EEA?style=flat-square)](https://eips.ethereum.org/EIPS/eip-4361)
+[![JWT](https://img.shields.io/badge/JWT-Authentication-000000?style=flat-square&logo=jsonwebtokens)](https://jwt.io/)
+[![Zod](https://img.shields.io/badge/Zod-Validation-3068B7?style=flat-square&logo=zod)](https://zod.dev/)
+[![Helmet](https://img.shields.io/badge/Helmet-Security-333333?style=flat-square)](https://helmetjs.github.io/)
+[![RLS](https://img.shields.io/badge/PostgreSQL-RLS-4169E1?style=flat-square)](https://supabase.com/docs/guides/database/postgres/row-level-security)
+
+### DevOps & Testing
+
+[![Git](https://skillicons.dev/icons?i=git)](https://git-scm.com/doc)
+[![GitHub](https://skillicons.dev/icons?i=github)](https://docs.github.com/)
+[![GitHub Actions](https://skillicons.dev/icons?i=githubactions)](https://docs.github.com/en/actions)
+[![Vercel](https://skillicons.dev/icons?i=vercel)](https://vercel.com/docs)
+
+[![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://render.com/docs)
+[![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge)](https://playwright.dev/)
+[![CodeQL](https://img.shields.io/badge/CodeQL-181717?style=for-the-badge&logo=github)](https://codeql.github.com/)
+[![Gitleaks](https://img.shields.io/badge/Gitleaks-Secret_Scanning-7B2CBF?style=for-the-badge)](https://github.com/gitleaks/gitleaks)
+[![Dependabot](https://img.shields.io/badge/Dependabot-025E8C?style=for-the-badge&logo=dependabot)](https://docs.github.com/en/code-security/dependabot)
 
 ## System Architecture
 
 ```mermaid
-flowchart TD
-    U[User Browser] --> F[React + Vite Frontend on Vercel]
-    F --> M[MetaMask EIP-1193 Provider]
-    F -->|HTTPS + JWT + X-Request-Id| B[Express API on Render]
-    M -->|Signed Tx| E[Ethereum Sepolia]
-    B -->|SQL + RLS| D[(Supabase PostgreSQL)]
-    B -->|JSON-RPC| A[Alchemy Sepolia RPC]
-    A --> E
-    E --> S[SendWithdrawMoney.sol]
+flowchart TB
+    U[User] --> F[React Frontend - Vercel]
+
+    F <-->|Wallet Connection| M[MetaMask]
+    M -->|Signed Transactions| C[Solidity Smart Contract]
+
+    F <-->|HTTPS REST API| B[Express Backend - Render]
+
+    subgraph Backend
+        B --> A[SIWE and JWT Authentication]
+        B --> V[Transaction Verification]
+        B --> S[Blockchain Synchronization]
+        B --> L[Structured Logging]
+    end
+
+    A --> D[(Supabase PostgreSQL)]
+    V --> D
+    S --> D
+
+    V --> R[Alchemy RPC]
+    S --> R
+
+    R <--> C
+
+    subgraph Ethereum Sepolia
+        C
+    end
+
+    G[GitHub Actions] -.->|CI/CD| F
+    G -.->|CI/CD| B
+
+    O[Uptime Monitoring] -.-> F
+    O -.-> B
 ```
+
+The blockchain serves as the source of truth for balances and transaction execution. The backend independently verifies on-chain transactions and maintains indexed transaction history in PostgreSQL.
+
+Wallet private keys remain under the user's control through MetaMask.
+
+## Smart Contract
+
+| Property | Details |
+|---|---|
+| Contract | `SendWithdrawMoney` |
+| Language | Solidity 0.8.20 |
+| Network | Ethereum Sepolia |
+| Chain ID | `11155111` |
+| Framework | Hardhat |
+| Address | `0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67` |
+
+[View contract on Sepolia Etherscan](https://sepolia.etherscan.io/address/0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67)
+
+The contract maintains individual wallet balances, supports ETH deposits and withdrawals, and emits events for transaction verification and historical indexing.
+
+Withdrawal balances are updated before external value transfers, following the checks-effects-interactions pattern.
 
 ## Authentication Flow
 
 ```mermaid
 sequenceDiagram
-    participant U as User
+    actor User
     participant F as Frontend
     participant M as MetaMask
-    participant B as Backend API
-    participant D as Supabase DB
+    participant B as Backend
+    participant D as PostgreSQL
 
-    U->>F: Click Connect Wallet
-    F->>M: eth_requestAccounts
+    User->>F: Connect Wallet
+    F->>M: Request Wallet Address
     M-->>F: Wallet Address
-    F->>B: POST /api/auth/nonce
-    B->>D: Store single-use nonce (TTL 300s)
-    B-->>F: EIP-4361 SIWE Message
-    F->>M: personal_sign(message)
-    M-->>F: Signature
-    F->>B: POST /api/auth/verify
-    B->>B: Verify SIWE signature & domain/URI
-    B->>D: Consume nonce & create wallet_sessions row
-    B-->>F: Signed HS256 JWT (jti = session UUID)
+
+    F->>B: Request SIWE Challenge
+    B->>D: Store Nonce
+    B-->>F: SIWE Message
+
+    F->>M: Request Signature
+    M-->>F: Signed Message
+
+    F->>B: Submit Message and Signature
+    B->>B: Verify Signature and SIWE Claims
+    B->>D: Consume Nonce and Create Session
+    B-->>F: JWT Access Token
+
+    F->>B: Authenticated API Request
+    B->>D: Validate Active Session
+    B-->>F: Authorized Response
+
+    F->>B: Logout
+    B->>D: Revoke Session
+    B-->>F: Logout Successful
 ```
 
-## Blockchain Transaction Verification Flow
+Authentication uses cryptographic wallet signatures rather than passwords. JWT sessions are validated against persistent database records, allowing immediate session revocation.
 
-```mermaid
-sequenceDiagram
-    participant F as Frontend
-    participant M as MetaMask
-    participant E as Sepolia Contract
-    participant B as Backend API
-    participant R as Alchemy RPC
-    participant D as Supabase DB
-
-    F->>M: Submit deposit / withdraw / withdrawToAddress
-    M->>E: Broadcast transaction
-    E-->>F: Confirmed txHash
-    F->>B: POST /api/transactions (txHash + JWT)
-    B->>R: Fetch tx & receipt, verify Deposited/Withdrawn event
-    B->>D: Idempotent upsert into transactions
-    B-->>F: Verified transaction record
-```
-
-## CI/CD Pipeline
+## Transaction Verification
 
 ```mermaid
 flowchart LR
-    P[Push to main] --> CI[CI: Frontend, Backend, Contracts]
-    P --> SEC[Security: Gitleaks + npm audit]
-    P --> CQL[CodeQL SAST]
-    CI --> G{verify-gates}
-    SEC --> G
-    CQL --> G
-    G -->|All passed + main tip| R[Deploy Render Backend]
-    R -->|/health & /health/ready 200| V[Deploy Vercel Frontend]
-    V --> ST[Live Production Smoke Tests]
-    ST --> PW[Playwright Mocked Wallet Tests]
+    A[MetaMask] --> B[Ethereum]
+    B --> C[Transaction Hash]
+    C --> D[Backend Verification]
+    D --> E{Valid Transaction?}
+    E -->|Yes| F[(PostgreSQL)]
+    E -->|No| G[Reject]
+    F --> H[Transaction History]
 ```
 
-## Monitoring & Observability Architecture
+The backend validates transaction receipts, contract addresses, event data, wallet ownership, amounts and recipients before persisting transaction records.
 
-```mermaid
-flowchart LR
-    U[Uptime Workflow every 6h] -->|HTTPS Probe| FE[Vercel Frontend]
-    U -->|Cold-Start Retry Probe| H1[GET /health]
-    U -->|Dependency Probe| H2[GET /health/ready]
-    H2 --> DB[(Supabase)]
-    H2 --> RPC[Alchemy Sepolia]
-    BE[Backend Middleware] -->|JSON Logs + Redaction + X-Request-Id| RL[Render Logs]
-    EB[React ErrorBoundary] -->|Fallback UI| UI[Frontend]
-```
+Historical synchronization uses bounded block ranges, confirmation buffers and persistent per-wallet checkpoints to avoid repeatedly scanning the entire blockchain.
 
----
+## Database
 
-## Database Architecture
+PostgreSQL is used for transaction indexing, authentication state and synchronization checkpoints.
 
-| Table | Purpose | Key Protections |
+| Table | Responsibility |
+|---|---|
+| `transactions` | Verified blockchain transaction history |
+| `wallet_nonces` | Temporary SIWE authentication challenges |
+| `wallet_sessions` | Authentication sessions and revocation |
+| `wallet_sync_state` | Per-wallet blockchain synchronization checkpoints |
+
+Database integrity is maintained through unique transaction hashes, required field constraints, Row Level Security and backend authorization.
+
+## API Reference
+
+| Method | Endpoint | Description |
 |---|---|---|
-| `transactions` | Verified deposit, withdraw, and transfer records | Unique `tx_hash`, `NOT NULL` `block_number` & `created_at`, RLS |
-| `wallet_nonces` | Ephemeral SIWE login challenges | Single-use consumption, `expires_at` TTL, RLS |
-| `wallet_sessions` | Active and revoked JWT sessions (`jti` UUID) | Immediate `revoked_at` invalidation on logout, RLS |
-| `wallet_sync_state` | Incremental blockchain sync checkpoints | Per-wallet `last_synced_block`, RLS |
+| POST | `/api/auth/nonce` | Generate SIWE challenge |
+| POST | `/api/auth/verify` | Verify wallet signature |
+| GET | `/api/auth/me` | Retrieve authenticated session |
+| POST | `/api/auth/logout` | Revoke session |
+| POST | `/api/transactions` | Verify and persist transaction |
+| GET | `/api/transactions/:wallet` | Retrieve wallet transaction history |
+| POST | `/api/sync` | Synchronize blockchain events |
+| GET | `/health` | Application liveness |
+| GET | `/health/ready` | Database and RPC readiness |
 
----
+Protected endpoints require a valid Bearer JWT and active wallet session.
 
-## Repository Structure
+```http
+Authorization: Bearer <access_token>
+```
+
+For request schemas, response formats and error codes, see the [API documentation](docs/API_DOCUMENTATION.md).
+
+## Security
+
+| Layer | Implementation |
+|---|---|
+| Authentication | EIP-4361 SIWE and JWT |
+| Authorization | Wallet ownership and active session validation |
+| Replay Protection | Single-use, time-limited nonces |
+| Input Validation | Zod |
+| HTTP Security | Helmet and strict CORS |
+| Abuse Prevention | API rate limiting |
+| Database Security | PostgreSQL RLS and constraints |
+| Transaction Integrity | Independent on-chain verification |
+| Secret Management | Environment variables and GitHub Secrets |
+| Security Automation | CodeQL, Gitleaks, npm audit and Dependabot |
+| Logging Privacy | Sensitive data redaction |
+
+Production dependency audits reported zero vulnerabilities at the time of the final validation.
+
+See the [security documentation](docs/SECURITY.md) for security controls and limitations.
+
+## CI/CD
+
+```mermaid
+flowchart TD
+    A[Push to Main] --> B[Continuous Integration]
+    A --> C[Security Scanning]
+    A --> D[CodeQL Analysis]
+
+    B --> E{All Required Checks Passed?}
+    C --> E
+    D --> E
+
+    E -->|No| F[Block Deployment]
+    E -->|Yes| G{Runtime Changes?}
+
+    G -->|No| H[Skip Deployment]
+    G -->|Yes| I[Deploy Backend to Render]
+
+    I --> J[Backend Readiness Check]
+    J --> K[Deploy Frontend to Vercel]
+    K --> L[Production Smoke Tests]
+    L --> M[Playwright Regression Tests]
+```
+
+GitHub Actions automates application testing, dependency auditing, secret scanning, static analysis and production deployment.
+
+Deployment gates enforce successful required checks, commit eligibility and duplicate deployment prevention. Documentation-only changes skip unnecessary production deployments.
+
+## Monitoring & Observability
+
+The application includes operational monitoring through:
+
+- Structured JSON application logs
+- `X-Request-Id` request correlation
+- Sensitive credential and signature redaction
+- HTTP response status and duration logging
+- Application liveness and dependency readiness checks
+- React error boundary and recovery interface
+- Automated uptime checks every six hours
+
+| Service | Monitoring Endpoint |
+|---|---|
+| Frontend | [Application](https://eth-wallet-dapp-eta.vercel.app) |
+| Backend Liveness | [/health](https://eth-wallet-dapp-backend.onrender.com/health) |
+| Backend Readiness | [/health/ready](https://eth-wallet-dapp-backend.onrender.com/health/ready) |
+
+Readiness checks validate Supabase and Ethereum RPC connectivity. Unavailable dependencies result in HTTP `503`.
+
+Uptime monitoring runs independently of the deployment pipeline.
+
+## Testing
+
+The application includes automated regression, smart contract, browser, deployment and live production tests.
+
+| Test Suite | Passed |
+|---|---:|
+| Backend Regression Tests | 20/20 |
+| Frontend Tests | 7/7 |
+| Smart Contract Tests | 8/8 |
+| Playwright Browser Tests | 3/3 |
+| Deployment Gate Tests | 7/7 |
+| Uptime Monitoring Tests | 3/3 |
+| Production Smoke Tests | 22/22 |
+| **Total** | **70/70** |
+
+Additional validation includes ESLint, production builds, CodeQL, Gitleaks and production dependency audits.
+
+Backend and browser regression tests use mocked external dependencies. Smart contract tests execute against a local Hardhat EVM, while production smoke tests validate live deployed services.
+
+## Project Structure
 
 ```text
 eth-wallet-dapp/
 ├── .github/
-│   ├── dependabot.yml
-│   └── workflows/
-│       ├── cd.yml
-│       ├── ci.yml
-│       ├── codeql.yml
-│       ├── security.yml
-│       └── uptime.yml
+│   ├── workflows/
+│   └── dependabot.yml
 ├── backend/
-│   ├── config/          # Zod env validation & Supabase client
-│   ├── controllers/     # Auth, transaction, and sync handlers
-│   ├── middleware/      # JWT auth, rate limits, Zod validation, requestLogger
-│   ├── migrations/      # PostgreSQL schema & constraint migrations
-│   ├── routes/          # Express route definitions
-│   ├── services/        # SIWE, session, blockchain verification, sync logic
-│   ├── tests/           # Security, regression, health, monitoring tests
-│   ├── utils/           # Structured JSON logger with secret redaction
-│   ├── .env.example
-│   ├── package.json
+│   ├── config/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── routes/
+│   ├── services/
+│   ├── tests/
+│   ├── utils/
 │   └── server.js
-├── contracts-project/
-│   ├── contracts/       # SendWithdrawMoney.sol
-│   ├── scripts/         # Hardhat deployment script
-│   ├── test/            # Hardhat smart contract tests
-│   ├── .env.example
-│   ├── hardhat.config.js
-│   └── package.json
-├── docs/                # Phase reports & security audit documentation
 ├── frontend/
-│   ├── contracts/       # ABI & contract helper
 │   ├── src/
-│   │   ├── components/  # ErrorBoundary
-│   │   ├── services/    # authApi, TransactionApi, walletAuthFlow
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── tests/           # Auth reliability & Playwright mocked-wallet tests
-│   ├── .env.example
-│   ├── package.json
+│   ├── tests/
 │   └── vercel.json
+├── contracts-project/
+│   ├── contracts/
+│   ├── test/
+│   └── hardhat.config.js
 ├── scripts/
-│   ├── cdGateCheck.mjs
-│   ├── cdGateCheck.test.mjs
-│   └── smokeTestProduction.mjs
+├── docs/
+├── .gitignore
 ├── LICENSE
-├── README.md
-└── render.yaml
+└── README.md
 ```
 
----
-
-## Local Installation & Setup
+## Getting Started
 
 ### Prerequisites
-- Node.js `22+` and `npm`
-- MetaMask browser extension
-- Supabase project, Alchemy Sepolia RPC key, and Sepolia test ETH
 
-### 1. Clone the Repository
+- Node.js 22 and npm
+- Git
+- MetaMask browser extension
+- Supabase project
+- Ethereum Sepolia RPC endpoint
+
+### Clone the Repository
+
 ```bash
 git clone https://github.com/Sidhant322129/eth-wallet-dapp.git
 cd eth-wallet-dapp
 ```
 
-### 2. Backend Setup
+### Backend Setup
+
 ```bash
 cd backend
 npm ci
-cp .env.example .env
 ```
-Populate `backend/.env` with your own local values (never commit `.env`):
-```dotenv
-PORT=5000
-NODE_ENV=development
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
-SIWE_DOMAIN=localhost:5173
-SIWE_URI=http://localhost:5173
-SIWE_CHAIN_ID=11155111
-NONCE_TTL_SECONDS=300
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_SECRET_KEY=sb_secret_your_local_key_here
-SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY
-CONTRACT_ADDRESS=0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67
-JWT_SECRET=replace_with_64_random_bytes_hex
-JWT_EXPIRES_IN=1h
-CONTRACT_DEPLOYMENT_BLOCK=12203912
-SYNC_BLOCK_RANGE=10
-SYNC_MAX_BLOCKS=200
-SYNC_CONFIRMATIONS=12
-```
+
+Create a `.env` file using `.env.example` and configure the database, RPC endpoint, contract address, JWT secret, SIWE settings and allowed origins.
+
+Initialize the database according to the [database schema documentation](docs/DATABASE_SCHEMA.md).
+
 Start the backend:
+
 ```bash
 npm run dev
 ```
 
-### 3. Frontend Setup
+The backend runs at `http://localhost:5000`.
+
+### Frontend Setup
+
+Open a separate terminal from the repository root:
+
 ```bash
 cd frontend
 npm ci
-cp .env.example .env
 ```
-Configure `frontend/.env`:
-```dotenv
-VITE_CONTRACT_ADDRESS=0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67
-VITE_CHAIN_ID=11155111
-VITE_API_URL=http://localhost:5000/api
-```
+
+Create a `.env` file using `.env.example` and configure the public API URL, contract address and Sepolia chain ID.
+
 Start the frontend:
+
 ```bash
 npm run dev
 ```
 
-### 4. Smart Contract Tests
+The frontend runs at `http://localhost:5173`.
+
+### Smart Contract Setup
+
+From the repository root:
+
 ```bash
 cd contracts-project
 npm ci
@@ -278,55 +464,108 @@ npx hardhat compile
 npx hardhat test
 ```
 
----
+The existing Sepolia contract can be used without redeployment.
 
-## REST API Endpoints
+Never commit private keys, database credentials, RPC credentials or JWT secrets.
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/` | Public | Service status banner |
-| `GET` | `/health` | Public | Fast process liveness check (`200`) |
-| `GET` | `/health/ready` | Public | Bounded Supabase + Sepolia RPC readiness (`200` / `503`) |
-| `POST` | `/api/auth/nonce` | Public | Generate single-use EIP-4361 SIWE challenge |
-| `POST` | `/api/auth/verify` | Public | Verify signature, consume nonce, issue JWT |
-| `GET` | `/api/auth/me` | Bearer JWT | Validate active session & wallet identity |
-| `POST` | `/api/auth/logout` | Bearer JWT | Revoke current session in Supabase |
-| `POST` | `/api/transactions` | Bearer JWT | Verify Sepolia receipt/event & store transaction |
-| `GET` | `/api/transactions/:wallet` | Bearer JWT | Fetch wallet-owned transaction history |
-| `POST` | `/api/sync` | Bearer JWT | Incrementally sync up to 200 blocks from Sepolia |
+## Running Tests
 
----
+### Backend
 
-## Testing & Verification
+```bash
+cd backend
+npm test
+```
 
-| Suite | Command | Latest Observed Result |
-|---|---|---|
-| **Backend Unit, Security & Monitoring** | `cd backend && npm test` | `19/19` passed (`4` suites) |
-| **Frontend Lint & Build** | `cd frontend && npm run lint && npm run build` | `0` lint errors, `188` modules built |
-| **Frontend Auth Reliability** | `cd frontend && npm test` | `7/7` passed (mocked providers/API) |
-| **Frontend Playwright Browser** | `cd frontend && npm run test:browser` | `3/3` passed (mocked EIP-1193 provider) |
-| **Smart Contracts** | `cd contracts-project && npx hardhat test` | `8/8` passed |
-| **CD Gate Simulation** | `node --test scripts/cdGateCheck.test.mjs` | `5/5` passed |
-| **Live Production Smoke Suite** | `node scripts/smokeTestProduction.mjs` | `22/22` passed |
-| **Production Dependency Audits** | `npm audit --omit=dev` (all 3 packages) | `0` production vulnerabilities |
+### Frontend
 
----
+```bash
+cd frontend
+npm run lint
+npm test
+npm run build
+```
 
-## Known Limitations & Future Improvements
+### Browser
 
-- **Testnet Scope**: Deployed on Ethereum Sepolia for demonstration; `SendWithdrawMoney.sol` has not undergone a third-party paid smart contract audit and is not intended for mainnet funds.
-- **Free-Tier Cold Starts**: Render free-tier instances sleep after inactivity (~30–50s wake latency), handled by bounded retries and a 60s frontend auth timeout.
-- **External Error Alerting**: React `ErrorBoundary` and structured JSON logging are active; optional Sentry DSN integration is documented in `docs/PHASE_5_7_MONITORING_REPORT.md` pending external account setup.
-- **Future Work**: Code-splitting the 515 kB frontend bundle, adding multi-chain support, and integrating Slither/Foundry static analysis for Solidity.
+```bash
+cd frontend
+npx playwright install chromium
+npm run build
+npm run test:browser
+```
 
----
+### Smart Contract
+
+```bash
+cd contracts-project
+npx hardhat test
+```
+
+### Deployment & Monitoring
+
+Run from the repository root:
+
+```bash
+node --test scripts/cdGateCheck.test.mjs scripts/uptimeCheck.test.mjs
+node scripts/smokeTestProduction.mjs
+node scripts/uptimeCheck.mjs
+```
+
+## Deployment
+
+| Component | Platform |
+|---|---|
+| Frontend | [Vercel](https://eth-wallet-dapp-eta.vercel.app) |
+| Backend | [Render](https://eth-wallet-dapp-backend.onrender.com) |
+| Database | Supabase PostgreSQL |
+| Smart Contract | Ethereum Sepolia |
+| Blockchain RPC | Alchemy |
+| CI/CD | GitHub Actions |
+
+Production credentials are managed through provider environment settings and GitHub Actions secrets.
+
+See the [deployment guide](docs/DEPLOYMENT_GUIDE.md) for infrastructure configuration.
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [Architecture](docs/ARCHITECTURE.md) | System design and component interactions |
+| [API Reference](docs/API_DOCUMENTATION.md) | REST API and authentication |
+| [Database Schema](docs/DATABASE_SCHEMA.md) | Data models and access policies |
+| [Security](docs/SECURITY.md) | Security controls and threat mitigation |
+| [Deployment](docs/DEPLOYMENT_GUIDE.md) | Infrastructure and CI/CD |
+| [Testing](docs/TESTING_GUIDE.md) | Test suites and validation |
+| [Monitoring](docs/MONITORING_RUNBOOK.md) | Observability and incident response |
+
+## Limitations
+
+- The application is intended for Ethereum Sepolia testnet use.
+- The smart contract has not undergone an independent professional security audit.
+- Render free-tier cold starts may affect initial response times.
+- In-memory rate limiting and synchronization locks assume a single backend instance.
+- Confirmation-aware synchronization reduces but does not eliminate blockchain reorganization risks.
+- Some development dependency advisories remain pending compatible upgrades.
 
 ## License
 
-Licensed under the **GNU General Public License v3.0** — see [LICENSE](LICENSE).
+Distributed under the GNU General Public License v3.0.
+
+See [LICENSE](LICENSE) for details.
 
 ## Author
 
-**Sidhant Hansda**  
-B.Tech in Information Technology, Heritage Institute of Technology, Kolkata  
-[GitHub: @Sidhant322129](https://github.com/Sidhant322129)
+**Sidhant Hansda**
+
+Full-Stack Developer | Blockchain & Web3
+
+[![GitHub](https://img.shields.io/badge/GitHub-Sidhant322129-181717?style=for-the-badge&logo=github)](https://github.com/Sidhant322129)
+
+---
+
+<div align="center">
+
+Built with React, Node.js, Solidity and Ethereum.
+
+</div>
