@@ -1,5 +1,6 @@
 const { rateLimit } = require("express-rate-limit");
 const { isAddress } = require("ethers");
+const logger = require("../utils/logger");
 
 /**
  * Reusable rate limiter factory.
@@ -19,6 +20,12 @@ function createRateLimiter({
         standardHeaders: "draft-8",
         legacyHeaders: false,
         handler: (req, res, _next, opts) => {
+            logger.warn("rate_limit_exceeded", {
+                requestId: req.requestId,
+                method: req.method,
+                path: `${req.baseUrl || ""}${req.path || "/"}`,
+                statusCode: opts.statusCode
+            });
             return res.status(opts.statusCode).json({
                 success: false,
                 message

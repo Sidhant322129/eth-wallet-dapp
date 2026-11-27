@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { isAddress } = require("ethers");
 const env = require("../config/env");
+const logger = require("../utils/logger");
 const {
     UUID_REGEX,
     validateActiveSession
@@ -72,7 +73,10 @@ async function protect(req, res, next) {
 
         next();
     } catch (error) {
-        console.error("Session validation error:", error.message);
+        logger.error("auth_session_validation_failed", {
+            requestId: req.requestId,
+            error: error?.message || "Unknown error"
+        });
 
         // Fail closed when authentication database is unavailable
         return res.status(503).json({

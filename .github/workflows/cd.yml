@@ -265,5 +265,11 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
-      - name: Run Playwright mocked EIP-1193 browser tests
-        run: npm run test:browser
+      - name: Build frontend and run Playwright mocked EIP-1193 browser tests
+        env:
+          VITE_CONTRACT_ADDRESS: "0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67"
+          VITE_CHAIN_ID: "11155111"
+          VITE_API_URL: "https://eth-wallet-dapp-backend.onrender.com/api"
+        run: |
+          npm run build
+          npm run test:browser

@@ -11,6 +11,8 @@ const transactionRoutes = require("./routes/transactionRoutes");
 const authRoutes = require("./routes/authRoutes");
 const syncRoutes = require("./routes/syncRoutes");
 const { globalLimiter } = require("./middleware/rateLimitMiddleware");
+const { requestLogger } = require("./middleware/requestLogger");
+const logger = require("./utils/logger");
 
 const app = express();
 app.disable("x-powered-by");
@@ -19,6 +21,8 @@ app.disable("x-powered-by");
 if (env.NODE_ENV === "production") {
     app.set("trust proxy", 1);
 }
+
+app.use(requestLogger);
 
 // Security headers (HSTS disabled on local HTTP dev, enabled in production)
 app.use(
@@ -33,7 +37,7 @@ app.use(
 // Middleware
 app.use(cors({
     origin: env.ALLOWED_ORIGINS_LIST,
-    exposedHeaders: ["Retry-After", "RateLimit", "RateLimit-Policy"]
+    exposedHeaders: ["X-Request-Id", "Retry-After", "RateLimit", "RateLimit-Policy"]
 }));
 
 app.use("/api", globalLimiter);
@@ -121,14 +125,20 @@ app.get("/health/ready", async (req, res) => {
             database = "up";
         }
     } catch (error) {
-        console.error("Readiness DB check failed:", error?.message || "Unknown error");
+        logger.error("readiness_db_failed", {
+            requestId: req.requestId,
+            error: error?.message || "Unknown error"
+        });
     }
 
     try {
         await withTimeout(provider.getBlockNumber());
         blockchainRpc = "up";
     } catch (error) {
-        console.error("Readiness RPC check failed:", error?.message || "Unknown error");
+        logger.error("readiness_rpc_failed", {
+            requestId: req.requestId,
+            error: error?.message || "Unknown error"
+        });
     }
 
     const ready = database === "up" && blockchainRpc === "up";
@@ -188,7 +198,11 @@ app.use((err, req, res, next) => {
         });
     }
 
-    console.error("Unhandled server error:", err?.message || "Unknown error");
+    logger.error("unhandled_server_error", {
+        requestId: req.requestId,
+        status: err?.status || 500,
+        error: err?.message || "Unknown error"
+    });
 
     return res.status(err?.status || 500).json({
         success: false,
@@ -202,11 +216,11 @@ const PORT = env.PORT;
 // Start server only when executed directly (allows importing app in tests)
 if (require.main === module) {
     const server = app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on port ${PORT} (${env.NODE_ENV})`);
+        logger.info("server_started", { port: PORT, env: env.NODE_ENV });
     });
 
     const shutdown = (signal) => {
-        console.log(`Received ${signal}; shutting down gracefully...`);
+        logger.info("server_shutdown", { signal });
         server.close(() => {
             process.exit(0);
         });
@@ -214,6 +228,15 @@ if (require.main === module) {
 
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("unhandledRejection", (reason) => {
+        logger.error("unhandled_rejection", {
+            error: reason instanceof Error ? reason.message : String(reason)
+        });
+    });
+    process.on("uncaughtException", (error) => {
+        logger.error("uncaught_exception", { error: error?.message || "Unknown error" });
+        process.exit(1);
+    });
 }
 
 module.exports = app;
