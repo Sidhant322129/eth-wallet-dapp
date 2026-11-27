@@ -10,7 +10,7 @@
 | **Phase 4 (4.1–4.6)** | Rate limiting, Helmet, Zod, env validation, SIWE/JWT/session revocation, security audit, DB `NOT NULL` | **COMPLETE** |
 | **Phase 5.1–5.5** | GitHub repo, CI, CodeQL, Gitleaks, npm audit, Dependabot, Render prep, live validation & auth loading fix | **COMPLETE** |
 | **Phase 5.6** | Gated CD (`cd.yml`), docs-only skip (`cdGateCheck.mjs`), `vercel.json`, smoke tests, remote Playwright | **COMPLETE** |
-| **Phase 5.7** | Structured JSON logging, `X-Request-Id`, redaction, `ErrorBoundary`, `uptimeCheck.mjs`, `uptime.yml` | **PARTIAL** (remote `uptime.yml` manual dispatch pending authenticated GitHub UI/CLI trigger or 6h cron tick) |
+| **Phase 5.7** | Structured JSON logging, `X-Request-Id`, redaction, `ErrorBoundary`, `uptimeCheck.mjs`, `uptime.yml` | **COMPLETE** (remote `Uptime Monitoring #1` [46001004982](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/46001004982) passed in `12s`; Sentry optional & excluded from mandatory scope) |
 | **Phase 6** | Root `README.md`, `docs/` architecture/API/DB/security/deployment/monitoring/testing/portfolio docs, screenshots | **COMPLETE** |
 
 ## 3. Actual Automated Test Results
@@ -37,7 +37,7 @@
 ## 7. Production Smoke Test, 8. Remote Playwright & 9. Uptime Results
 - **Production Smoke Tests**: `22/22` passed locally and remotely (`16s` in `45999325986`).
 - **Remote Playwright**: Passed (`32s` in `45999325986`).
-- **Uptime Monitoring**: `node scripts/uptimeCheck.mjs` passed live (`Frontend 200 1053ms`, `Backend /health 200 461ms`, `Backend /health/ready 200 1201ms`); remote `uptime.yml` scheduled every 6h (`PARTIAL` awaiting first remote cron/manual dispatch).
+- **Uptime Monitoring**: `node scripts/uptimeCheck.mjs` passed live (`Frontend 200 1053ms`, `Backend /health 200 461ms`, `Backend /health/ready 200 1201ms`); remote `Uptime Monitoring #1` ([46001004982](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/46001004982)) passed in `12s` (`Check Production Availability` `8s`) on `main` (`132bc25`) without triggering `CD`.
 
 ## 10. Documentation-Only Deployment Verification
 - `scripts/cdGateCheck.mjs` compares candidate commit against `baselineSha` (last successful CD rollout) and skips CD when only `README.md`, `docs/**`, or `*.md` changed; verified via `7/7` unit tests in `scripts/cdGateCheck.test.mjs` and the final docs-only commit push.
@@ -52,7 +52,7 @@
 - **Docs (`docs/` — 18 files)**: `ARCHITECTURE.md`, `API_DOCUMENTATION.md`, `DATABASE_SCHEMA.md`, `SECURITY.md`, `DEPLOYMENT_GUIDE.md`, `MONITORING_RUNBOOK.md`, `TESTING_GUIDE.md`, `PORTFOLIO_SUMMARY.md`, `FINAL_PROJECT_COMPLETION_REPORT.md`, `SECURITY_TEST_REPORT.md`, `PHASE_5_2_CI_REPORT.md` through `PHASE_5_7_MONITORING_REPORT.md`, plus `docs/screenshots/01-live-vercel-landing.png` and `docs/screenshots/02-authenticated-dashboard-mock.png`.
 
 ## 15. Remaining Limitations & 16. Optional Future Enhancements
-- **Limitations**: Sepolia testnet demo only (no paid third-party smart contract audit); Render free-tier cold starts; remote `uptime.yml` awaiting first manual/scheduled run.
+- **Limitations**: Sepolia testnet demo only (no paid third-party smart contract audit); Render free-tier cold starts.
 - **Optional Enhancements**: Sentry error tracking (`VITE_SENTRY_DSN` / `SENTRY_DSN`), frontend bundle code-splitting, Slither/Foundry Solidity CI.
 
 ## 17. Final Commit SHA & 18. Final Git Status
@@ -61,4 +61,4 @@
 
 ## 19. Portfolio Readiness & 20. Final Acceptance Checklist
 - **Portfolio Readiness**: **Ready** (live demo, Mermaid architecture, API/DB/Security docs, screenshots, resume bullets & interview Q&A).
-- **Acceptance Checklist**: All mandatory Phase 1–5.6 and Phase 6 criteria **COMPLETE**; Phase 5.7 remote `uptime.yml` first execution **PARTIAL** (1-click `Run workflow` in GitHub Actions UI or wait for 6h cron).
+- **Acceptance Checklist**: **100% COMPLETE** — all mandatory Phase 1–6 acceptance criteria are satisfied and verified. Optional enhancements (Sentry, bundle code-splitting, Slither/Foundry) remain excluded from the agreed mandatory scope.

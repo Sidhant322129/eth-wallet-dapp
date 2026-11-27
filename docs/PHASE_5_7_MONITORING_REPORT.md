@@ -19,4 +19,8 @@
   - Frontend (`https://eth-wallet-dapp-eta.vercel.app`): **UP (`200`)**, `1053ms`
   - Backend `/health`: **UP (`200`)**, `461ms`
   - Backend `/health/ready`: **UP (`200`)**, `1201ms` (`{"database":"up","blockchainRpc":"up"}`)
-- **Remote `uptime.yml` Dispatch Status (`PARTIAL`)**: Local environment has no authenticated `gh` CLI / `GITHUB_TOKEN`, so remote `workflow_dispatch` of `uptime.yml` requires a 1-click trigger in GitHub Actions UI (or waiting for the 6h cron tick).
+- **Remote `Uptime Monitoring #1` Workflow (`COMPLETE`)**:
+  - **URL**: [https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/46001004982](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/46001004982)
+  - **Branch / Commit**: `main` (`132bc25`), manual `workflow_dispatch`
+  - **Result**: **Success** (`12s` total workflow duration; job `Check Production Availability` `8s`), confirming remote availability monitoring passes and does not trigger `CD`.
+- **Phase 5.7 Status**: **COMPLETE** (all mandatory logging, redaction, correlation ID, health/readiness, error boundary, and remote uptime monitoring criteria satisfied; optional Sentry remains excluded from mandatory scope).
