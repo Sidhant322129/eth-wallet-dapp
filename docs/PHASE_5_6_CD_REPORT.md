@@ -1,35 +1,28 @@
 # Phase 5.6 — Continuous Deployment (CD) and Automated Production Smoke Testing Report
 
-## 1. Deployment & Verification Summary (Commit `751a9e9` + `browser-tests` fix)
-- **Verified Deployed Commit SHA**: `751a9e92e11b5ea7f42a4f98360a3d5b114415d3` (`751a9e9`)
+## 1. Deployment & Verification Summary
+- **Latest Deployed Runtime Commit SHA**: `2b60e5a1f134d75d09d9b4666feeddb6f2c1042a` (`2b60e5a`)
 - **Production URLs**:
-  - Frontend (Vercel): `https://eth-wallet-dapp-eta.vercel.app` (bundle `/assets/index-B_aNPZCq.js`)
+  - Frontend (Vercel): `https://eth-wallet-dapp-eta.vercel.app`
   - Backend (Render): `https://eth-wallet-dapp-backend.onrender.com`
 - **Provider Auto-Deploy Protection**:
   - Render: `render.yaml` sets `autoDeployTrigger: off`.
   - Vercel: `frontend/vercel.json` sets `"git": { "deploymentEnabled": false }`.
 
-## 2. GitHub Actions Results for `751a9e9`
-| Workflow | Run ID / Link | Status | Jobs |
+## 2. GitHub Actions Results for `2b60e5a`
+| Workflow | Run ID / Link | Status | Jobs & Durations |
 |---|---|---|---|
-| **CI** | [45993256606](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45993256606) | **success** | `Frontend CI`, `Backend CI`, `Smart Contract CI` (`completed/success`) |
-| **Security Scanning** | [45993256670](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45993256670) | **success** | `Secret Scan (Gitleaks)`, `Dependency Audit (Frontend/Backend/Contracts)` (`completed/success`) |
-| **CodeQL** | [45993256551](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45993256551) | **success** | `Analyze (javascript-typescript)` (`completed/success`) |
-| **CD (Gate Wait 1)** | [45993309140](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45993309140) | no-op skip | `verify-gates` `success`; deploy jobs `skipped` (gates incomplete) |
-| **CD (Gate Wait 2)** | [45993318809](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45993318809) | no-op skip | `verify-gates` `success`; deploy jobs `skipped` (gates incomplete) |
-| **CD (Active Rollout)** | [45993420692](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45993420692) | partial | `verify-gates` (`success`), `deploy-render` (`success`), `deploy-vercel` (`success`), `smoke-test` (`success`), `browser-tests` (`failure`: missing `npm run build` before `vite preview`) |
+| **CI** | [45999127087](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45999127087) | **success** | `Frontend CI` (`11s`), `Backend CI` (`19s`), `Smart Contract CI` (`24s`) |
+| **Security Scanning** | [45999127102](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45999127102) | **success** | `Secret Scan (Gitleaks)` (`11s`), `Dependency Audit (Frontend)` (`8s`), `Dependency Audit (Backend)` (`9s`), `Dependency Audit (Contracts)` (`16s`) |
+| **CodeQL** | [45999127089](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45999127089) | **success** | `Analyze (javascript-typescript)` |
+| **CD (Active Rollout)** | [45999325986](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45999325986) | **success** | `Verify Required Gates & Commit Tip` (`16s`), `Deploy Backend (Render)` (`35s`), `Deploy Frontend (Vercel)` (`40s`), `Production Smoke Tests` (`16s`), `Mocked Wallet Browser Tests (Playwright)` (`32s`) |
 
-- **Root Cause & Fix for `browser-tests`**: `frontend/dist/` is gitignored, so `vite preview` required `npm run build` in the `browser-tests` job of `.github/workflows/cd.yml`. Fixed and carried into the next gated CD rollout alongside Phase 5.7.
+*(Earlier commits `ad00b9e` — CD [45994457891](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45994457891) — and `5f14d1f` — CD [45997853341](https://github.com/Sidhant322129/eth-wallet-dapp/actions/runs/45997853341) — also completed all 5 CD jobs including `Mocked Wallet Browser Tests (Playwright)`.)*
 
-## 3. Gate Simulation, Audits & Live Smoke Tests
-- **Gate Simulation (`scripts/cdGateCheck.test.mjs`)**: `5/5` passed (`193.84ms`) — verifies failed CI blocks, in-progress CodeQL blocks, stale `main` SHA blocks, earlier skipped no-op CD runs do NOT block real deploys, and completed `deploy-vercel` runs prevent duplicate deploys.
-- **Production Audits (`npm audit --omit=dev`)**: `0` vulnerabilities across `frontend`, `backend`, and `contracts-project`.
-- **Live Production Smoke Tests (`scripts/smokeTestProduction.mjs`)**: `22/22` passed (`0` failed) — HTTPS `200`, bundle URL/contract verified, `0` secrets in bundle, `/health` `200`, `/health/ready` `200` (`database:"up"`, `blockchainRpc:"up"`), CORS allow/reject, Helmet headers, `/api/test-db` `404`, `401` unauth/invalid JWT, ephemeral wallet SIWE auth, replay `401`, cross-wallet `403`, history `200`, logout `200` + revocation `401`, Sepolia `chainId=11155111`, bytecode `2549B`, balance `0.0575 ETH`.
-- **Ephemeral Wallet Cleanup**: `smokeTestProduction.mjs` revokes the ephemeral session via `POST /api/auth/logout`, and `wallet_nonces` expires automatically after `NONCE_TTL_SECONDS=300` without needing `SUPABASE_SECRET_KEY` in GitHub Secrets.
-- **Playwright Mocked Browser Tests (`npm run test:browser`)**: `3/3` passed locally (`6.06s`) against `vite preview` with mocked EIP-1193 provider.
-
-## 4. Rollback & Token Renewal
-- **Render**: Render Dashboard → `eth-wallet-dapp-backend` → **Events / Deploys** → **Rollback to this deploy**.
-- **Vercel**: Vercel Dashboard → `eth-wallet-dapp` → **Deployments** → **Promote to Production**.
-- **Vercel Token Renewal**: Vercel Account Settings → **Tokens** → update `VERCEL_TOKEN` in GitHub Repository Secrets → revoke old token.
-- **Status**: Phase 5.6 core deployment & `22/22` live smoke tests passed; `cd.yml` `browser-tests` build fix will be verified in the Phase 5.7 gated CD rollout.
+## 3. Docs-Only Skip & Gate Hardening (`scripts/cdGateCheck.mjs`)
+- Compares candidate `main` SHA against the **last successfully deployed runtime commit** (`baselineSha`) using GitHub Compare API (`/compare/{baselineSha}...{sha}`), skipping CD when only `README.md`, `docs/**`, or `*.md` changed, and failing safely (deploying) if `baselineSha` is missing or ambiguous.
+- Ignores earlier skipped/no-op CD runs when checking for duplicate deployments.
+- Records non-sensitive Render deploy ID and Vercel deploy URL in `$GITHUB_STEP_SUMMARY`.
+- **Gate Simulation (`scripts/cdGateCheck.test.mjs`)**: `7/7` passed (`CI` fail, `CodeQL` in-progress, stale `main` SHA, skipped no-op CD run, duplicate completed CD run, docs-only skip, mixed docs+runtime deploy).
+- **Live Production Smoke Tests (`scripts/smokeTestProduction.mjs`)**: `22/22` passed (`0` failed).
+- **Playwright Mocked Browser Tests**: `3/3` passed locally and remotely (`32s` in `45999325986`).
