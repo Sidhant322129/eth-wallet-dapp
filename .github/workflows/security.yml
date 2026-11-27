@@ -1,0 +1,192 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full Git history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned Gitleaks CLI with SHA-256 verification
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION="8.30.0"
+          TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          EXPECTED_SHA256="79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e"
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${TARBALL}" -o "/tmp/${TARBALL}"
+          echo "${EXPECTED_SHA256}  /tmp/${TARBALL}" | sha256sum --check -
+          tar -xzf "/tmp/${TARBALL}" -C /usr/local/bin gitleaks
+          rm -f "/tmp/${TARBALL}"
+          gitleaks version
+
+      - name: Scan repository and full Git history (redacted)
+        run: |
+          gitleaks git --redact --verbose --no-banner --exit-code 1
+
+  dependency-audit-frontend:
+    name: Dependency Audit (Frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Enforce high/critical gate on production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Generate and evaluate full dependency audit report
+        run: |
+          node -e '
+            const fs = require("fs");
+            const { spawnSync } = require("child_process");
+            const res = spawnSync("npm", ["audit", "--json"], { encoding: "utf8" });
+            if (res.error) {
+              console.error("Failed to execute npm audit:", res.error.message);
+              process.exit(1);
+            }
+            const report = JSON.parse(res.stdout || "{}");
+            if (report.error) {
+              console.error("npm registry/network audit error:", JSON.stringify(report.error));
+              process.exit(1);
+            }
+            fs.writeFileSync("npm-audit-frontend.json", JSON.stringify(report, null, 2));
+            const v = (report.metadata && report.metadata.vulnerabilities) || {};
+            console.log("Frontend full audit summary:", JSON.stringify(v));
+            for (const [name, info] of Object.entries(report.vulnerabilities || {})) {
+              console.log(`- ${name}: severity=${info.severity}, direct=${info.isDirect}`);
+            }
+          '
+
+  dependency-audit-backend:
+    name: Dependency Audit (Backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Enforce high/critical gate on production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Generate and evaluate full dependency audit report
+        run: |
+          node -e '
+            const fs = require("fs");
+            const { spawnSync } = require("child_process");
+            const res = spawnSync("npm", ["audit", "--json"], { encoding: "utf8" });
+            if (res.error) {
+              console.error("Failed to execute npm audit:", res.error.message);
+              process.exit(1);
+            }
+            const report = JSON.parse(res.stdout || "{}");
+            if (report.error) {
+              console.error("npm registry/network audit error:", JSON.stringify(report.error));
+              process.exit(1);
+            }
+            fs.writeFileSync("npm-audit-backend.json", JSON.stringify(report, null, 2));
+            const v = (report.metadata && report.metadata.vulnerabilities) || {};
+            console.log("Backend full audit summary:", JSON.stringify(v));
+            for (const [name, info] of Object.entries(report.vulnerabilities || {})) {
+              console.log(`- ${name}: severity=${info.severity}, direct=${info.isDirect}`);
+            }
+          '
+
+  dependency-audit-contracts:
+    name: Dependency Audit (Contracts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: contracts-project
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: contracts-project/package-lock.json
+
+      - name: Install contracts-project dependencies
+        run: npm ci
+
+      - name: Enforce high/critical gate on production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Evaluate Hardhat tooling dependency gate (0 critical, high <= 7 baseline)
+        run: |
+          node -e '
+            const fs = require("fs");
+            const { spawnSync } = require("child_process");
+            const res = spawnSync("npm", ["audit", "--json"], { encoding: "utf8" });
+            if (res.error) {
+              console.error("Failed to execute npm audit:", res.error.message);
+              process.exit(1);
+            }
+            const report = JSON.parse(res.stdout || "{}");
+            if (report.error) {
+              console.error("npm registry/network audit error:", JSON.stringify(report.error));
+              process.exit(1);
+            }
+            fs.writeFileSync("npm-audit-contracts.json", JSON.stringify(report, null, 2));
+            const v = (report.metadata && report.metadata.vulnerabilities) || {};
+            console.log("Contracts full audit summary:", JSON.stringify(v));
+            if ((v.critical || 0) > 0) {
+              console.error(`SECURITY GATE FAILED: ${v.critical} critical vulnerabilities found.`);
+              process.exit(1);
+            }
+            const HIGH_BASELINE = 7;
+            if ((v.high || 0) > HIGH_BASELINE) {
+              console.error(`SECURITY GATE FAILED: ${v.high} high vulnerabilities exceed Hardhat 2 documented baseline (${HIGH_BASELINE}).`);
+              process.exit(1);
+            }
+            console.log(`Contracts tooling gate passed (critical=0, high=${v.high || 0} <= ${HIGH_BASELINE} Hardhat 2 baseline).`);
+          '

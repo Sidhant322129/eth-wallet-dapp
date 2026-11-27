@@ -13,9 +13,9 @@ The repository uses a single GitHub Actions workflow (`.github/workflows/ci.yml`
 
 | Job | Working Directory | Steps |
 |---|---|---|
-| `frontend` (`Frontend CI`) | `frontend` | `actions/checkout@v4` → `actions/setup-node@v4` (Node 22, npm cache) → `npm ci` → `npm run lint` → `npm run build` |
-| `backend` (`Backend CI`) | `backend` | `actions/checkout@v4` → `actions/setup-node@v4` (Node 22, npm cache) → `npm ci` → `npm test` (`node --test`) |
-| `contracts` (`Smart Contract CI`) | `contracts-project` | `actions/checkout@v4` → `actions/setup-node@v4` (Node 22, npm cache) → `npm ci` → `npx hardhat compile` → `npx hardhat test` |
+| `frontend` (`Frontend CI`) | `frontend` | `actions/checkout@v6` → `actions/setup-node@v6` (Node 22, npm cache) → `npm ci` → `npm run lint` → `npm run build` |
+| `backend` (`Backend CI`) | `backend` | `actions/checkout@v6` → `actions/setup-node@v6` (Node 22, npm cache) → `npm ci` → `npm test` (`node --test`) |
+| `contracts` (`Smart Contract CI`) | `contracts-project` | `actions/checkout@v6` → `actions/setup-node@v6` (Node 22, npm cache) → `npm ci` → `npx hardhat compile` → `npx hardhat test` |
 
 ## 4. Environment Requirements (CI-Safe, Non-Sensitive)
 - **Frontend**: `VITE_CONTRACT_ADDRESS`, `VITE_CHAIN_ID`, and `VITE_API_URL` are set to public test values during `npm run build`.
@@ -43,8 +43,15 @@ The repository uses a single GitHub Actions workflow (`.github/workflows/ci.yml`
 - Untrusted pull requests never receive production secrets.
 - No live database writes, Sepolia RPC calls, or contract deployments occur in CI.
 
-## 9. Remaining Blockers
-- Remote GitHub Actions execution has not run yet because the new workflow file has not been committed or pushed to `origin/main`.
+## 9. Remote CI Verification & Action-Runtime Modernization
+- **Initial Remote Run (Commit `d4efecd`, Run ID `45953413406`)**:
+  - **Frontend CI**: Passed in `12s`
+  - **Backend CI**: Passed in `18s`
+  - **Smart Contract CI**: Passed in `24s`
+  - **Total workflow duration**: `28s`
+  - **Warnings observed**: Three Node.js 20 action-runtime deprecation warnings from `actions/checkout@v4` and `actions/setup-node@v4`.
+- **Phase 5.3 Action-Runtime Remediation**:
+  - Upgraded `actions/checkout@v4` → `actions/checkout@v6` and `actions/setup-node@v4` → `actions/setup-node@v6` (Node.js 24 action runtime) across all three jobs in `.github/workflows/ci.yml` while keeping the application runtime at Node.js `22`.
 
 ## 10. Instructions for Pushing and Viewing GitHub Actions Results
 ```powershell
