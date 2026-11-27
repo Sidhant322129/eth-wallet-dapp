@@ -1,4 +1,23 @@
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env?.VITE_API_URL;
+const AUTH_TIMEOUT_MS = 60000;
+
+export async function fetchWithTimeout(url, options = {}, timeoutMs = AUTH_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } catch (error) {
+        if (error?.name === "AbortError") {
+            throw new Error(
+                "Authentication request timed out. The backend may be waking up — please retry.",
+                { cause: error }
+            );
+        }
+        throw error;
+    } finally {
+        clearTimeout(timer);
+    }
+}
 
 function buildAuthError(response, data, fallbackMessage) {
     const err = new Error((data && data.message) || fallbackMessage);
@@ -9,7 +28,7 @@ function buildAuthError(response, data, fallbackMessage) {
 // Request SIWE authentication challenge
 export async function requestNonce(wallet) {
 
-    const response = await fetch(`${API_URL}/auth/nonce`, {
+    const response = await fetchWithTimeout(`${API_URL}/auth/nonce`, {
         method: "POST",
 
         headers: {
@@ -32,7 +51,7 @@ export async function requestNonce(wallet) {
 // Verify SIWE signature and receive session-bound JWT
 export async function verifySignature(wallet, signature) {
 
-    const response = await fetch(`${API_URL}/auth/verify`, {
+    const response = await fetchWithTimeout(`${API_URL}/auth/verify`, {
         method: "POST",
 
         headers: {
@@ -58,7 +77,7 @@ export async function verifySignature(wallet, signature) {
 // Verify JWT token and active server-side session
 export async function getAuthenticatedWallet(token) {
 
-    const response = await fetch(`${API_URL}/auth/me`, {
+    const response = await fetchWithTimeout(`${API_URL}/auth/me`, {
         cache: "no-store",
         headers: {
             Authorization: `Bearer ${token}`
@@ -79,7 +98,7 @@ export async function getAuthenticatedWallet(token) {
 export async function logoutWallet(token) {
     if (!token) return;
 
-    const response = await fetch(`${API_URL}/auth/logout`, {
+    const response = await fetchWithTimeout(`${API_URL}/auth/logout`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${token}`

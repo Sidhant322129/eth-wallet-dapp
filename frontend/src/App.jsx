@@ -13,6 +13,7 @@ import {
     getAuthenticatedWallet,
     logoutWallet
 } from './services/authApi';
+import { runWalletAuthFlow } from './services/walletAuthFlow';
 import './App.css';
 
 function App() {
@@ -58,6 +59,7 @@ function App() {
     syncInFlightRef.current = false;
     setAuthToken('');
     setIsAuthenticated(false);
+    setLoading(false);
     setWalletAddress('');
     setBalance('0.00');
     setDepositedBalance('0.00');
@@ -369,109 +371,59 @@ function App() {
       generation: attemptGen
     };
 
-    try {
+    if (!window.ethereum) {
+      alert("Please install MetaMask first!");
+      return;
+    }
 
-        if (!window.ethereum) {
-            alert("Please install MetaMask first!");
-            return;
-        }
+    setLoading(true);
 
-        setLoading(true);
+    // Clear previous authentication and sync state
+    syncInFlightRef.current = false;
+    setAuthToken('');
+    setIsAuthenticated(false);
+    setWalletAddress('');
+    setTxHistory([]);
+    setSyncLoading(false);
+    setSyncStatus('');
+    setSyncSummary(null);
 
-        // Clear previous authentication and sync state
-        syncInFlightRef.current = false;
-        setAuthToken('');
-        setIsAuthenticated(false);
-        setWalletAddress('');
-        setTxHistory([]);
-        setSyncLoading(false);
-        setSyncStatus('');
-        setSyncSummary(null);
-
-        // Request MetaMask connection
-        await window.ethereum.request({
-            method: "eth_requestAccounts"
-        });
-
-        if (sessionRef.current.generation !== attemptGen) return;
-
-        const provider = new BrowserProvider(window.ethereum);
-
-        const network = await provider.getNetwork();
-
-        // Verify Sepolia network
-        if (network.chainId !== 11155111n) {
-            alert("Please switch to Sepolia network.");
-            return;
-        }
-
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-
-        if (sessionRef.current.generation !== attemptGen) return;
-
-        // Request nonce from backend
-        const challenge = await requestNonce(address);
-        if (sessionRef.current.generation !== attemptGen) return;
-
-        // Sign authentication message
-        const signature = await signer.signMessage(
-            challenge.message
-        );
-        if (sessionRef.current.generation !== attemptGen) return;
-
-        // Verify signature on backend
-        const auth = await verifySignature(
-            address,
-            signature
-        );
-        if (sessionRef.current.generation !== attemptGen) return;
-
-        // Test JWT authentication
-        const authenticated = await getAuthenticatedWallet(
-            auth.token
-        );
-        if (sessionRef.current.generation !== attemptGen) return;
-
-        if (
-            authenticated.wallet.toLowerCase() !==
-            address.toLowerCase()
-        ) {
-            throw new Error("Authenticated wallet mismatch");
-        }
-
-        // Store JWT in React state and update active session ref
+    await runWalletAuthFlow({
+      ethereum: window.ethereum,
+      createBrowserProvider: (eth) => new BrowserProvider(eth),
+      requestNonce,
+      verifySignature,
+      getAuthenticatedWallet,
+      isStale: () => sessionRef.current.generation !== attemptGen,
+      onWrongNetwork: () => {
+        alert("Please switch to Sepolia network.");
+      },
+      onAuthenticated: async ({ address, token }) => {
         sessionRef.current = {
-            wallet: address.toLowerCase(),
-            generation: attemptGen
+          wallet: address.toLowerCase(),
+          generation: attemptGen
         };
-        authTokenRef.current = auth.token;
-        setAuthToken(auth.token);
+        authTokenRef.current = token;
+        setAuthToken(token);
         setIsAuthenticated(true);
         setWalletAddress(address);
-
         setStatus("Wallet authenticated successfully!");
 
-        // Load balances and transaction history
         await fetchBalances(address, attemptGen);
-        await loadHistory(address, auth.token, attemptGen);
-
-    } catch (error) {
-        if (sessionRef.current.generation !== attemptGen) return;
-
+        await loadHistory(address, token, attemptGen);
+      },
+      onError: (error) => {
         console.error("Authentication error:", error);
-
         setStatus(
-            error.shortMessage ||
-            error.message ||
-            "Wallet connection failed"
+          error.shortMessage ||
+          error.message ||
+          "Wallet connection failed"
         );
-
-    } finally {
-        if (sessionRef.current.generation === attemptGen) {
-            setLoading(false);
-        }
-    }
+      },
+      onFinally: () => {
+        setLoading(false);
+      }
+    });
   }
 
   async function deposit() {
