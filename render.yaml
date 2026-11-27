@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: eth-wallet-dapp-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: SIWE_DOMAIN
+        sync: false
+      - key: SIWE_URI
+        sync: false
+      - key: SIWE_CHAIN_ID
+        value: "11155111"
+      - key: NONCE_TTL_SECONDS
+        value: "300"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SEPOLIA_RPC_URL
+        sync: false
+      - key: CONTRACT_ADDRESS
+        value: "0xD3F26853AF8cC8f3e41a50305692b754a3dd3d67"
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: "1h"
+      - key: CONTRACT_DEPLOYMENT_BLOCK
+        value: "12203912"
+      - key: SYNC_BLOCK_RANGE
+        value: "10"
+      - key: SYNC_MAX_BLOCKS
+        value: "200"
+      - key: SYNC_CONFIRMATIONS
+        value: "12"

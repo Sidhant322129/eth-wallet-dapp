@@ -4,14 +4,21 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 
-// Import Supabase client
+// Import Supabase client and blockchain provider
 const supabase = require("./config/supabase");
+const { provider } = require("./services/blockchainService");
 const transactionRoutes = require("./routes/transactionRoutes");
 const authRoutes = require("./routes/authRoutes");
 const syncRoutes = require("./routes/syncRoutes");
 const { globalLimiter } = require("./middleware/rateLimitMiddleware");
 
 const app = express();
+app.disable("x-powered-by");
+
+// Trust single reverse-proxy hop in production (Render TLS proxy) for accurate client IP rate limiting
+if (env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+}
 
 // Security headers (HSTS disabled on local HTTP dev, enabled in production)
 app.use(
@@ -68,45 +75,102 @@ app.use("/api/auth", authRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/sync", syncRoutes);
 
-// Test backend API
+// Root service banner
 app.get("/", (req, res) => {
     res.json({
         message: "Ethereum Wallet Backend is running"
     });
 });
 
-// Test Supabase database connection
-app.get("/api/test-db", async (req, res) => {
+// Process liveness check for Render (must remain fast and independent of external services)
+app.get("/health", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).json({
+        status: "ok",
+        service: "eth-wallet-backend",
+        uptimeSeconds: Math.floor(process.uptime())
+    });
+});
+
+// Dependency readiness check (database + Sepolia RPC) without exposing internal details
+app.get("/health/ready", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const CHECK_TIMEOUT_MS = 3000;
+
+    const withTimeout = (promise) => {
+        let timer;
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error("Dependency check timed out")),
+                    CHECK_TIMEOUT_MS
+                );
+            })
+        ]).finally(() => clearTimeout(timer));
+    };
+
+    let database = "down";
+    let blockchainRpc = "down";
 
     try {
-
-        const { count, error } = await supabase
-            .from("transactions")
-            .select("*", {
-                count: "exact",
-                head: true
-            });
-
-        if (error) {
-            throw error;
+        const { error } = await withTimeout(
+            supabase.from("transactions").select("id", { count: "exact", head: true })
+        );
+        if (!error) {
+            database = "up";
         }
-
-        res.status(200).json({
-            success: true,
-            message: "Supabase connected successfully",
-            transactionCount: count
-        });
-
     } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            success: false,
-            message: "Database connection failed"
-        });
+        console.error("Readiness DB check failed:", error?.message || "Unknown error");
     }
+
+    try {
+        await withTimeout(provider.getBlockNumber());
+        blockchainRpc = "up";
+    } catch (error) {
+        console.error("Readiness RPC check failed:", error?.message || "Unknown error");
+    }
+
+    const ready = database === "up" && blockchainRpc === "up";
+    return res.status(ready ? 200 : 503).json({
+        status: ready ? "ready" : "degraded",
+        dependencies: {
+            database,
+            blockchainRpc
+        }
+    });
 });
+
+// Restrict local DB debug endpoint to non-production environments
+if (env.NODE_ENV !== "production") {
+    app.get("/api/test-db", async (req, res) => {
+        try {
+            const { count, error } = await supabase
+                .from("transactions")
+                .select("*", {
+                    count: "exact",
+                    head: true
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            res.status(200).json({
+                success: true,
+                message: "Supabase connected successfully",
+                transactionCount: count
+            });
+        } catch (error) {
+            console.error("Database test error:", error?.message || "Unknown error");
+
+            res.status(500).json({
+                success: false,
+                message: "Database connection failed"
+            });
+        }
+    });
+}
 
 // Centralized JSON parsing, payload size, and fallback error handler
 app.use((err, req, res, next) => {
@@ -137,9 +201,19 @@ const PORT = env.PORT;
 
 // Start server only when executed directly (allows importing app in tests)
 if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+    const server = app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on port ${PORT} (${env.NODE_ENV})`);
     });
+
+    const shutdown = (signal) => {
+        console.log(`Received ${signal}; shutting down gracefully...`);
+        server.close(() => {
+            process.exit(0);
+        });
+    };
+
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 module.exports = app;
